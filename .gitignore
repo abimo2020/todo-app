@@ -1,0 +1,17 @@
+# Binary hasil build
+*.exe
+*.dll
+*.so
+*.dylib
+bin/
+
+# Env & secrets
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
