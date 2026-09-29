@@ -11,7 +11,7 @@ var (
 	ErrNotFound = errors.New("todo not found")
 )
 
-type Interface interface {
+type Repository interface {
 	GetList() ([]model.Todo, error)
 	GetDetail(id string) (model.Todo, error)
 	Create(todo model.Todo) error
@@ -24,7 +24,7 @@ type todo struct {
 	todos map[string]model.Todo
 }
 
-func Init() Interface {
+func New() Repository {
 	return &todo{
 		todos: make(map[string]model.Todo),
 	}
