@@ -2,9 +2,9 @@ package todo
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 
+	"github.com/abimo2020/todo-svc/apperror"
 	"github.com/abimo2020/todo-svc/internal/model"
 )
 
@@ -37,7 +37,8 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	res, err := h.todoService.GetList()
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err)
+		httpStatus := apperror.HTTPStatus(err)
+		writeError(w, httpStatus, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, res)
@@ -48,11 +49,8 @@ func (h *Handler) detail(w http.ResponseWriter, r *http.Request) {
 
 	res, err := h.todoService.GetDetail(id)
 	if err != nil {
-		if errors.Is(err, err) {
-			writeError(w, http.StatusNotFound, err)
-			return
-		}
-		writeError(w, http.StatusInternalServerError, err)
+		httpStatus := apperror.HTTPStatus(err)
+		writeError(w, httpStatus, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, res)
@@ -65,7 +63,8 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	}
 	res, err := h.todoService.Create(data)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err)
+		httpStatus := apperror.HTTPStatus(err)
+		writeError(w, httpStatus, err)
 	}
 	writeJSON(w, http.StatusCreated, res)
 }
@@ -74,7 +73,8 @@ func (h *Handler) markDone(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
 	if err := h.todoService.MarkDone(id); err != nil {
-		writeError(w, http.StatusInternalServerError, err)
+		httpStatus := apperror.HTTPStatus(err)
+		writeError(w, httpStatus, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -84,7 +84,8 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
 	if err := h.todoService.Delete(id); err != nil {
-		writeError(w, http.StatusInternalServerError, err)
+		httpStatus := apperror.HTTPStatus(err)
+		writeError(w, httpStatus, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

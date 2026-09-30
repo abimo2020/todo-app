@@ -1,15 +1,11 @@
 package todo
 
 import (
-	"errors"
 	"strconv"
 	"time"
 
+	"github.com/abimo2020/todo-svc/apperror"
 	"github.com/abimo2020/todo-svc/internal/model"
-)
-
-var (
-	ErrEmptyTitle = errors.New("title cannot be empty")
 )
 
 type TodoRepository interface {
@@ -40,7 +36,7 @@ func (s *Service) GetDetail(id string) (model.Todo, error) {
 
 func (s *Service) Create(param model.Todo) (model.Todo, error) {
 	if param.Title == "" {
-		return model.Todo{}, ErrEmptyTitle
+		return model.Todo{}, apperror.ErrEmptyTitle
 	}
 
 	param.ID = generateID()

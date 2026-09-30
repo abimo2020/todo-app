@@ -1,14 +1,10 @@
 package todo
 
 import (
-	"errors"
 	"sync"
 
+	"github.com/abimo2020/todo-svc/apperror"
 	"github.com/abimo2020/todo-svc/internal/model"
-)
-
-var (
-	ErrNotFound = errors.New("todo not found")
 )
 
 type Repository struct {
@@ -38,7 +34,7 @@ func (t *Repository) GetDetail(id string) (model.Todo, error) {
 
 	result, ok := t.todos[id]
 	if !ok {
-		return model.Todo{}, ErrNotFound
+		return model.Todo{}, apperror.ErrNotFound
 	}
 	return result, nil
 }
@@ -55,7 +51,7 @@ func (t *Repository) Update(todo model.Todo) error {
 
 	_, ok := t.todos[todo.ID]
 	if !ok {
-		return ErrNotFound
+		return apperror.ErrNotFound
 	}
 
 	t.todos[todo.ID] = todo
@@ -67,7 +63,7 @@ func (t *Repository) Delete(id string) error {
 
 	_, ok := t.todos[id]
 	if !ok {
-		return ErrNotFound
+		return apperror.ErrNotFound
 	}
 
 	delete(t.todos, id)
