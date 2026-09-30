@@ -11,26 +11,18 @@ var (
 	ErrNotFound = errors.New("todo not found")
 )
 
-type Repository interface {
-	GetList() ([]model.Todo, error)
-	GetDetail(id string) (model.Todo, error)
-	Create(todo model.Todo) error
-	Update(todo model.Todo) error
-	Delete(id string) error
-}
-
-type todo struct {
+type Repository struct {
 	mu    sync.Mutex
 	todos map[string]model.Todo
 }
 
-func New() Repository {
-	return &todo{
+func New() *Repository {
+	return &Repository{
 		todos: make(map[string]model.Todo),
 	}
 }
 
-func (t *todo) GetList() ([]model.Todo, error) {
+func (t *Repository) GetList() ([]model.Todo, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -40,7 +32,7 @@ func (t *todo) GetList() ([]model.Todo, error) {
 	}
 	return result, nil
 }
-func (t *todo) GetDetail(id string) (model.Todo, error) {
+func (t *Repository) GetDetail(id string) (model.Todo, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -50,14 +42,14 @@ func (t *todo) GetDetail(id string) (model.Todo, error) {
 	}
 	return result, nil
 }
-func (t *todo) Create(todo model.Todo) error {
+func (t *Repository) Create(todo model.Todo) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
 	t.todos[todo.ID] = todo
 	return nil
 }
-func (t *todo) Update(todo model.Todo) error {
+func (t *Repository) Update(todo model.Todo) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -69,7 +61,7 @@ func (t *todo) Update(todo model.Todo) error {
 	t.todos[todo.ID] = todo
 	return nil
 }
-func (t *todo) Delete(id string) error {
+func (t *Repository) Delete(id string) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
