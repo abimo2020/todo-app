@@ -5,17 +5,26 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+
+	notifHandler "github.com/abimo2020/notif-svc/internal/handler/notification"
+)
+
+const (
+	PORT = 8081
 )
 
 func main() {
-	port := 8081
+	notifHandler := notifHandler.New()
 
 	mux := http.NewServeMux()
+
+	notifHandler.RegisterRoutes(mux)
+
 	mux.HandleFunc("/health", healthHandler)
 
-	log.Printf("Server berjalan di :%d", port)
+	log.Printf("Server berjalan di :%d", PORT)
 
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), mux); err != nil {
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", PORT), mux); err != nil {
 		log.Fatal(err)
 	}
 }

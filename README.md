@@ -28,11 +28,11 @@ todo-app/
 
 ### todo-svc
 - [x] Server HTTP dasar (`net/http`), endpoint `/health`
-- [ ] Model `Todo` (ID, Title, Done, CreatedAt)
-- [ ] Repository in-memory (Create, GetAll, GetByID, Update, Delete)
-- [ ] Service layer (validasi, logic bisnis)
-- [ ] Handler & routing (CRUD via HTTP)
-- [ ] Test end-to-end pakai curl/Postman
+- [x] Model `Todo` (ID, Title, Done, CreatedAt)
+- [x] Repository in-memory (Create, GetAll, GetByID, Update, Delete)
+- [x] Service layer (validasi, logic bisnis)
+- [x] Handler & routing (CRUD via HTTP)
+- [x] Test end-to-end pakai curl/Postman
 
 ### notif-svc
 - [ ] Server HTTP dasar (`net/http`), endpoint `/health`

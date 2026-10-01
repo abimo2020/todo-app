@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/abimo2020/todo-svc/apperror"
+	"github.com/abimo2020/todo-svc/internal/handler"
 	"github.com/abimo2020/todo-svc/internal/model"
 )
 
@@ -38,10 +39,10 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	res, err := h.todoService.GetList()
 	if err != nil {
 		httpStatus := apperror.HTTPStatus(err)
-		writeError(w, httpStatus, err)
+		handler.WriteError(w, httpStatus, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, res)
+	handler.WriteJSON(w, http.StatusOK, res)
 }
 
 func (h *Handler) detail(w http.ResponseWriter, r *http.Request) {
@@ -50,23 +51,23 @@ func (h *Handler) detail(w http.ResponseWriter, r *http.Request) {
 	res, err := h.todoService.GetDetail(id)
 	if err != nil {
 		httpStatus := apperror.HTTPStatus(err)
-		writeError(w, httpStatus, err)
+		handler.WriteError(w, httpStatus, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, res)
+	handler.WriteJSON(w, http.StatusOK, res)
 }
 
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	var data model.Todo
 	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
-		writeError(w, http.StatusInternalServerError, err)
+		handler.WriteError(w, http.StatusInternalServerError, err)
 	}
 	res, err := h.todoService.Create(data)
 	if err != nil {
 		httpStatus := apperror.HTTPStatus(err)
-		writeError(w, httpStatus, err)
+		handler.WriteError(w, httpStatus, err)
 	}
-	writeJSON(w, http.StatusCreated, res)
+	handler.WriteJSON(w, http.StatusCreated, res)
 }
 
 func (h *Handler) markDone(w http.ResponseWriter, r *http.Request) {
@@ -74,7 +75,7 @@ func (h *Handler) markDone(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.todoService.MarkDone(id); err != nil {
 		httpStatus := apperror.HTTPStatus(err)
-		writeError(w, httpStatus, err)
+		handler.WriteError(w, httpStatus, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -85,18 +86,8 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.todoService.Delete(id); err != nil {
 		httpStatus := apperror.HTTPStatus(err)
-		writeError(w, httpStatus, err)
+		handler.WriteError(w, httpStatus, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
-}
-
-func writeJSON(w http.ResponseWriter, status int, data any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
-}
-
-func writeError(w http.ResponseWriter, status int, err error) {
-	writeJSON(w, status, map[string]any{"error": err.Error()})
 }
