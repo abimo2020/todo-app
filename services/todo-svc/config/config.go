@@ -1,6 +1,10 @@
 package config
 
-import "os"
+import (
+	"os"
+
+	"github.com/joho/godotenv"
+)
 
 type Config struct {
 	Port        string
@@ -8,6 +12,8 @@ type Config struct {
 }
 
 func Load() Config {
+	_ = godotenv.Load()
+
 	return Config{
 		Port:        getEnv("PORT", "8080"),
 		NotifSvcURL: getEnv("NOTIF_SVC_URL", "http://localhost:8081"),
