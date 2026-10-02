@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/abimo2020/todo-svc/internal/gateway/notif"
 	"github.com/abimo2020/todo-svc/internal/handler/todo"
 	todoRepo "github.com/abimo2020/todo-svc/internal/repository/todo"
 	todoSvc "github.com/abimo2020/todo-svc/internal/service/todo"
@@ -20,8 +21,10 @@ func main() {
 
 	mux.HandleFunc("/health", healthHandler)
 
+	notifClient := notif.New("http://localhost:8081")
+
 	todoRepo := todoRepo.New()
-	todoSvc := todoSvc.New(todoRepo)
+	todoSvc := todoSvc.New(todoRepo, notifClient)
 	todoHandler := todo.New(todoSvc)
 
 	todoHandler.RegisterRoutes(mux)

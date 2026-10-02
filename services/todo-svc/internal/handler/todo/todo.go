@@ -61,11 +61,13 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	var data model.Todo
 	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
 		httputil.WriteError(w, http.StatusInternalServerError, err)
+		return
 	}
 	res, err := h.todoService.Create(data)
 	if err != nil {
 		httpStatus := apperror.HTTPStatus(err)
 		httputil.WriteError(w, httpStatus, err)
+		return
 	}
 	httputil.WriteJSON(w, http.StatusCreated, res)
 }

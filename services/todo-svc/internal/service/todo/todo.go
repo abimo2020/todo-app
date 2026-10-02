@@ -16,13 +16,18 @@ type TodoRepository interface {
 	Delete(id string) error
 }
 
+type NotifClient interface {
+	NotifyTodoCreated(model.Todo) error
+}
 type Service struct {
-	todoRepo TodoRepository
+	todoRepo    TodoRepository
+	notifClient NotifClient
 }
 
-func New(todoRepo TodoRepository) *Service {
+func New(todoRepo TodoRepository, notifClient NotifClient) *Service {
 	return &Service{
-		todoRepo: todoRepo,
+		todoRepo:    todoRepo,
+		notifClient: notifClient,
 	}
 }
 
@@ -46,6 +51,12 @@ func (s *Service) Create(param model.Todo) (model.Todo, error) {
 	if err != nil {
 		return model.Todo{}, err
 	}
+
+	err = s.notifClient.NotifyTodoCreated(param)
+	if err != nil {
+		return model.Todo{}, err
+	}
+
 	return param, nil
 }
 
