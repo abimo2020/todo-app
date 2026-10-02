@@ -1,12 +1,17 @@
 package config
 
-import "os"
+import (
+	"os"
+
+	"github.com/joho/godotenv"
+)
 
 type Config struct {
 	Port string
 }
 
 func Load() Config {
+	_ = godotenv.Load()
 	return Config{
 		Port: getEnv("PORT", "8081"),
 	}
