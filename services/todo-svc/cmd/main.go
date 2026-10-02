@@ -2,26 +2,24 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 
+	"github.com/abimo2020/todo-svc/config"
 	"github.com/abimo2020/todo-svc/internal/gateway/notif"
 	"github.com/abimo2020/todo-svc/internal/handler/todo"
 	todoRepo "github.com/abimo2020/todo-svc/internal/repository/todo"
 	todoSvc "github.com/abimo2020/todo-svc/internal/service/todo"
 )
 
-const (
-	PORT = 8080
-)
-
 func main() {
+	cfg := config.Load()
+
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/health", healthHandler)
 
-	notifClient := notif.New("http://localhost:8081")
+	notifClient := notif.New(cfg.NotifSvcURL)
 
 	todoRepo := todoRepo.New()
 	todoSvc := todoSvc.New(todoRepo, notifClient)
@@ -29,9 +27,9 @@ func main() {
 
 	todoHandler.RegisterRoutes(mux)
 
-	log.Printf("Server berjalan di :%d\n", PORT)
+	log.Printf("Server berjalan di :%s\n", cfg.Port)
 
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", PORT), mux); err != nil {
+	if err := http.ListenAndServe(":"+cfg.Port, mux); err != nil {
 		log.Fatal(err)
 	}
 }
