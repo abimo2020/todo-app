@@ -2,10 +2,10 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 
+	"github.com/abimo2020/notif-svc/config"
 	notifHandler "github.com/abimo2020/notif-svc/internal/handler/notification"
 )
 
@@ -14,6 +14,8 @@ const (
 )
 
 func main() {
+	cfg := config.Load()
+
 	notifHandler := notifHandler.New()
 
 	mux := http.NewServeMux()
@@ -22,9 +24,9 @@ func main() {
 
 	mux.HandleFunc("/health", healthHandler)
 
-	log.Printf("Server berjalan di :%d", PORT)
+	log.Printf("Server berjalan di :%s", cfg.Port)
 
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", PORT), mux); err != nil {
+	if err := http.ListenAndServe(":"+cfg.Port, mux); err != nil {
 		log.Fatal(err)
 	}
 }
