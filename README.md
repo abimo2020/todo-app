@@ -35,13 +35,13 @@ todo-app/
 - [x] Test end-to-end pakai curl/Postman
 
 ### notif-svc
-- [ ] Server HTTP dasar (`net/http`), endpoint `/health`
-- [ ] Endpoint `/notify` untuk menerima event dari `todo-svc`
-- [ ] Log notifikasi ke console saat event diterima
+- [x] Server HTTP dasar (`net/http`), endpoint `/health`
+- [x] Endpoint `/notify` untuk menerima event dari `todo-svc`
+- [x] Log notifikasi ke console saat event diterima
 
 ### Integrasi antar service
-- [ ] `todo-svc` memanggil `notif-svc` (HTTP call) saat todo baru dibuat
-- [ ] Jalankan kedua service bersamaan, test alur end-to-end
+- [x] `todo-svc` memanggil `notif-svc` (HTTP call) saat todo baru dibuat
+- [x] Jalankan kedua service bersamaan, test alur end-to-end
 - [ ] (Opsional) Buat `pkg/shared` untuk struct yang dipakai bersama, tambahkan ke `go.work`
 
 ### Eksplorasi lanjutan (setelah alur dasar jalan)
