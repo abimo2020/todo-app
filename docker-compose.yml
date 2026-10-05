@@ -1,0 +1,17 @@
+services:
+  todo-svc:
+    build: ./services/todo-svc
+    ports: 
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - NOTIF_SVC_URL=http://notif-svc:8081
+    depends_on:
+      - notif-svc
+  notif-svc:
+    build: ./services/notif-svc
+    ports:
+      - "8081:8081"
+    environment:
+      - PORT=8081
+    
