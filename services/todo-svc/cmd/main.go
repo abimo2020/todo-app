@@ -1,9 +1,12 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/abimo2020/todo-svc/config"
 	"github.com/abimo2020/todo-svc/internal/gateway/notif"
@@ -15,13 +18,23 @@ import (
 func main() {
 	cfg := config.Load()
 
+	db, err := sql.Open("pgx", cfg.DBDsn)
+	if err != nil {
+		log.Fatalf("failed to connect db: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.Ping(); err != nil {
+		log.Fatalf("failed to ping db: %v", err)
+	}
+
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/health", healthHandler)
 
 	notifClient := notif.New(cfg.NotifSvcURL)
 
-	todoRepo := todoRepo.New()
+	todoRepo := todoRepo.New(db)
 	todoSvc := todoSvc.New(todoRepo, notifClient)
 	todoHandler := todo.New(todoSvc)
 

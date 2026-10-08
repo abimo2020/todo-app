@@ -1,71 +1,98 @@
 package todo
 
 import (
-	"sync"
+	"context"
+	"database/sql"
+	"errors"
+	"time"
 
 	"github.com/abimo2020/todo-svc/apperror"
 	"github.com/abimo2020/todo-svc/internal/model"
 )
 
 type Repository struct {
-	mu    sync.Mutex
-	todos map[string]model.Todo
+	db *sql.DB
 }
 
-func New() *Repository {
+func New(db *sql.DB) *Repository {
 	return &Repository{
-		todos: make(map[string]model.Todo),
+		db: db,
 	}
 }
 
 func (t *Repository) GetList() ([]model.Todo, error) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	result := make([]model.Todo, 0, len(t.todos))
-	for _, v := range t.todos {
-		result = append(result, v)
+	query := "SELECT id, title, done, created_at FROM todos WHERE deleted_at IS null ORDER BY created_at desc"
+	rows, err := t.db.QueryContext(context.Background(), query)
+	if err != nil {
+		return nil, err
 	}
-	return result, nil
+	defer rows.Close()
+
+	var todos []model.Todo
+	for rows.Next() {
+		var todo model.Todo
+		if err := rows.Scan(&todo.ID, &todo.Title, &todo.Done, &todo.CreatedAt); err != nil {
+			return nil, err
+		}
+		todos = append(todos, todo)
+	}
+
+	return todos, rows.Err()
 }
 func (t *Repository) GetDetail(id string) (model.Todo, error) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+	query := "SELECT id, title, done, created_at FROM todos WHERE id = $1"
 
-	result, ok := t.todos[id]
-	if !ok {
+	var todo model.Todo
+	err := t.db.QueryRowContext(context.Background(), query, id).Scan(
+		&todo.ID, &todo.Title, &todo.Done, &todo.CreatedAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
 		return model.Todo{}, apperror.ErrNotFound
 	}
-	return result, nil
+	if err != nil {
+		return model.Todo{}, err
+	}
+	return todo, nil
 }
 func (t *Repository) Create(todo model.Todo) error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	t.todos[todo.ID] = todo
+	query := "INSERT INTO todos (id, title, done, created_at) VALUEs ($1,$2,$3,$4)"
+	_, err := t.db.ExecContext(context.Background(), query,
+		&todo.ID, &todo.Title, &todo.Done, &todo.CreatedAt,
+	)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 func (t *Repository) Update(todo model.Todo) error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	_, ok := t.todos[todo.ID]
-	if !ok {
+	query := "UPDATE todos SET title = $1, done = $2, updated_at = $3 WHERE id = $4"
+	res, err := t.db.ExecContext(context.Background(), query,
+		todo.Title, todo.Done, todo.UpdateAt, todo.ID,
+	)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
 		return apperror.ErrNotFound
 	}
-
-	t.todos[todo.ID] = todo
 	return nil
 }
 func (t *Repository) Delete(id string) error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	_, ok := t.todos[id]
-	if !ok {
+	query := "UPDATE todos SET deleted_at = $1 WHERE id = $2"
+	res, err := t.db.ExecContext(context.Background(), query, time.Now(), id)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
 		return apperror.ErrNotFound
 	}
-
-	delete(t.todos, id)
 	return nil
 }

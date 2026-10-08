@@ -9,6 +9,7 @@ import (
 type Config struct {
 	Port        string
 	NotifSvcURL string
+	DBDsn       string
 }
 
 func Load() Config {
@@ -17,6 +18,7 @@ func Load() Config {
 	return Config{
 		Port:        getEnv("PORT", "8080"),
 		NotifSvcURL: getEnv("NOTIF_SVC_URL", "http://localhost:8081"),
+		DBDsn:       getEnv("DB_DSN", "postgres://todo_user:todo_pass@localhost:5432/todo_db?sslmode=disable"),
 	}
 }
 
