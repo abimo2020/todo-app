@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
 
+	amqp "github.com/rabbitmq/amqp091-go"
+
 	"github.com/abimo2020/notif-svc/config"
+	"github.com/abimo2020/notif-svc/internal/consumer/todocreated"
 	notifHandler "github.com/abimo2020/notif-svc/internal/handler/notification"
 )
 
@@ -15,6 +19,23 @@ const (
 
 func main() {
 	cfg := config.Load()
+
+	conn, err := amqp.Dial(cfg.RabbitMQURL)
+	if err != nil {
+		log.Fatalf("Failed to connect rabbitmq: %v", err)
+	}
+	defer conn.Close()
+
+	consumer, err := todocreated.New(conn)
+	if err != nil {
+		log.Fatalf("Failed to setup todocreated consumer: %v", err)
+	}
+
+	go func() {
+		if err := consumer.Run(context.Background()); err != nil {
+			log.Fatalf("Consumer stopped: %v", err)
+		}
+	}()
 
 	notifHandler := notifHandler.New()
 

@@ -7,13 +7,15 @@ import (
 )
 
 type Config struct {
-	Port string
+	Port        string
+	RabbitMQURL string
 }
 
 func Load() Config {
 	_ = godotenv.Load()
 	return Config{
-		Port: getEnv("PORT", "8081"),
+		Port:        getEnv("PORT", "8081"),
+		RabbitMQURL: getEnv("RABBIT_MQ_URL", "amqp://todo_user:todo_pass@localhost:5672/"),
 	}
 }
 
