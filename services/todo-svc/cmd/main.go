@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
+	amqp "github.com/rabbitmq/amqp091-go"
 
 	"github.com/abimo2020/todo-svc/config"
 	"github.com/abimo2020/todo-svc/internal/gateway/notif"
@@ -28,11 +29,23 @@ func main() {
 		log.Fatalf("failed to ping db: %v", err)
 	}
 
+	rabbitMQConn, err := amqp.Dial(cfg.RabbitMQURL)
+	if err != nil {
+		log.Fatalf("failed to connect rabbitMQ: %v", err)
+	}
+
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/health", healthHandler)
 
-	notifClient := notif.New(cfg.NotifSvcURL)
+	// Notif client using http protocol
+	// notifClient := notif.New(cfg.NotifSvcURL)
+
+	// Notif client using rabbitMQ
+	notifClient, err := notif.NewRabbitMQ(rabbitMQConn)
+	if err != nil {
+		log.Fatalf("failed to setup notif client: %v", err)
+	}
 
 	todoRepo := todoRepo.New(db)
 	todoSvc := todoSvc.New(todoRepo, notifClient)
