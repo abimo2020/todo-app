@@ -45,9 +45,9 @@ todo-app/
 - [ ] (Opsional) Buat `pkg/shared` untuk struct yang dipakai bersama, tambahkan ke `go.work`
 
 ### Eksplorasi lanjutan (setelah alur dasar jalan)
-- [ ] Ganti in-memory repository ke database asli (PostgreSQL)
-- [ ] Containerize tiap service dengan Docker + `docker-compose.yml`
-- [ ] Ganti komunikasi HTTP sinkron ke message broker (RabbitMQ/NATS/Kafka)
+- [x] Ganti in-memory repository ke database asli (PostgreSQL)
+- [x] Containerize tiap service dengan Docker + `docker-compose.yml`
+- [x] Ganti komunikasi HTTP sinkron ke message broker (RabbitMQ/NATS/Kafka)
 - [ ] Tambah observability (structured logging, tracing)
 - [ ] Tambah unit test & mock untuk tiap layer
 
