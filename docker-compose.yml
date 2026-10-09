@@ -10,7 +10,7 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics","-q","ping"]
+      test: ["CMD", "rabbitmq-diagnostics","-q","check_port_connectivity"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -26,7 +26,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U todo-user -d todo_db"]
+      test: ["CMD-SHELL", "pg_isready -U todo_user -d todo_db"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -39,11 +39,12 @@ services:
       - PORT=8080
       - NOTIF_SVC_URL=http://notif-svc:8081
       - DB_DSN=postgres://todo_user:todo_pass@postgres:5432/todo_db?sslmode=disable
+      - RABBITMQ_URL=amqp://todo_user:todo_pass@rabbitmq:5672/
     depends_on:
       postgres:
         condition: service_healthy
-      notif-svc:
-        condition: service_started
+      rabbitmq:
+        condition: service_healthy
 
   notif-svc:
     build: ./services/notif-svc
@@ -51,6 +52,10 @@ services:
       - "8081:8081"
     environment:
       - PORT=8081
+      - RABBITMQ_URL=amqp://todo_user:todo_pass@rabbitmq:5672/
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
 
 volumes:
   postgres_data:

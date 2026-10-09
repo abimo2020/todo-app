@@ -15,7 +15,7 @@ func Load() Config {
 	_ = godotenv.Load()
 	return Config{
 		Port:        getEnv("PORT", "8081"),
-		RabbitMQURL: getEnv("RABBIT_MQ_URL", "amqp://todo_user:todo_pass@localhost:5672/"),
+		RabbitMQURL: getEnv("RABBITMQ_URL", "amqp://todo_user:todo_pass@localhost:5672/"),
 	}
 }
 
