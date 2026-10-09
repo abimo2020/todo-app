@@ -38,10 +38,6 @@ func main() {
 
 	mux.HandleFunc("/health", healthHandler)
 
-	// Notif client using http protocol
-	// notifClient := notif.New(cfg.NotifSvcURL)
-
-	// Notif client using rabbitMQ
 	notifClient, err := notif.NewRabbitMQ(rabbitMQConn)
 	if err != nil {
 		log.Fatalf("failed to setup notif client: %v", err)
