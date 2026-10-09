@@ -1,3 +1,5 @@
+// DEPRECATED: jalur HTTP lama, diganti RabbitMQ. Disimpan sebagai referensi belajar.
+
 package notif
 
 import (
