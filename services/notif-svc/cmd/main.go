@@ -10,7 +10,6 @@ import (
 
 	"github.com/abimo2020/notif-svc/config"
 	"github.com/abimo2020/notif-svc/internal/consumer/todocreated"
-	notifHandler "github.com/abimo2020/notif-svc/internal/handler/notification"
 )
 
 const (
@@ -37,11 +36,7 @@ func main() {
 		}
 	}()
 
-	notifHandler := notifHandler.New()
-
 	mux := http.NewServeMux()
-
-	notifHandler.RegisterRoutes(mux)
 
 	mux.HandleFunc("/health", healthHandler)
 
