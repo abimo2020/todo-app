@@ -1,6 +1,7 @@
 package todo
 
 import (
+	"log"
 	"strconv"
 	"time"
 
@@ -54,7 +55,7 @@ func (s *Service) Create(param model.Todo) (model.Todo, error) {
 
 	err = s.notifClient.NotifyTodoCreated(param)
 	if err != nil {
-		return model.Todo{}, err
+		log.Printf("error notify: %v", err)
 	}
 
 	return param, nil
