@@ -55,9 +55,9 @@ func (t *Repository) GetDetail(id string) (model.Todo, error) {
 	return todo, nil
 }
 func (t *Repository) Create(todo model.Todo) error {
-	query := "INSERT INTO todos (id, title, done, created_at) VALUEs ($1,$2,$3,$4)"
+	query := "INSERT INTO todos (id, title, done, created_at,updated_at) VALUEs ($1,$2,$3,$4)"
 	_, err := t.db.ExecContext(context.Background(), query,
-		&todo.ID, &todo.Title, &todo.Done, &todo.CreatedAt,
+		&todo.ID, &todo.Title, &todo.Done, &todo.CreatedAt, &todo.CreatedAt,
 	)
 	if err != nil {
 		return err
@@ -67,7 +67,7 @@ func (t *Repository) Create(todo model.Todo) error {
 func (t *Repository) Update(todo model.Todo) error {
 	query := "UPDATE todos SET title = $1, done = $2, updated_at = $3 WHERE id = $4"
 	res, err := t.db.ExecContext(context.Background(), query,
-		todo.Title, todo.Done, todo.UpdateAt, todo.ID,
+		todo.Title, todo.Done, todo.UpdatedAt, todo.ID,
 	)
 	if err != nil {
 		return err
