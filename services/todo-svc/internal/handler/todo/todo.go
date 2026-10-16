@@ -60,7 +60,7 @@ func (h *Handler) detail(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	var data model.Todo
 	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
-		httputil.WriteError(w, http.StatusInternalServerError, err)
+		httputil.WriteError(w, http.StatusBadRequest, err)
 		return
 	}
 	res, err := h.todoService.Create(data)
