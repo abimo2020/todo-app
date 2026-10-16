@@ -1,5 +1,6 @@
 services:
   rabbitmq:
+    hostname: rabbitmq
     image: rabbitmq:3-management
     ports:
       - "5672:5672" # Port untuk aplikasi (protocol AMQP)
