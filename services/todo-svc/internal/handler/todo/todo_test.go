@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/abimo2020/todo-svc/apperror"
 	"github.com/abimo2020/todo-svc/internal/model"
@@ -22,6 +23,7 @@ func (f *fakeService) Create(param model.Todo) (model.Todo, error) { return f.to
 func (f *fakeService) Delete(id string) error                      { return f.err }
 
 func TestHandler(t *testing.T) {
+	now := time.Now()
 	tests := []struct {
 		name       string
 		method     string
@@ -54,8 +56,22 @@ func TestHandler(t *testing.T) {
 			name:       "todo found",
 			method:     http.MethodGet,
 			path:       "/todos/1",
-			svc:        &fakeService{todo: model.Todo{ID: "1", Title: "Bebek goreng"}},
+			svc:        &fakeService{todo: model.Todo{ID: "1", Title: "Bebek goreng", CreatedAt: now, UpdatedAt: &now}},
 			wantStatus: http.StatusOK,
+		}, {
+			name:       "unknown fields are rejected",
+			method:     http.MethodPost,
+			path:       "/todos",
+			svc:        &fakeService{err: apperror.ErrInvalidInput},
+			body:       `{"title": "salah", "done": true}`,
+			wantStatus: http.StatusBadRequest,
+		}, {
+			name:       "service validation map into 400",
+			method:     http.MethodPost,
+			path:       "/todos",
+			body:       `{"title": ""}`,
+			svc:        &fakeService{err: apperror.ErrInvalidInput},
+			wantStatus: http.StatusBadRequest,
 		},
 	}
 

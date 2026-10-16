@@ -42,7 +42,13 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 		httputil.WriteError(w, httpStatus, err)
 		return
 	}
-	httputil.WriteJSON(w, http.StatusOK, res)
+
+	out := make([]todoResponse, 0, len(res))
+	for _, v := range res {
+		out = append(out, toResponse(v))
+	}
+
+	httputil.WriteJSON(w, http.StatusOK, out)
 }
 
 func (h *Handler) detail(w http.ResponseWriter, r *http.Request) {
@@ -54,16 +60,20 @@ func (h *Handler) detail(w http.ResponseWriter, r *http.Request) {
 		httputil.WriteError(w, httpStatus, err)
 		return
 	}
-	httputil.WriteJSON(w, http.StatusOK, res)
+	httputil.WriteJSON(w, http.StatusOK, toResponse(res))
 }
 
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
-	var data model.Todo
-	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+
+	var data createRequest
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&data); err != nil {
 		httputil.WriteError(w, http.StatusBadRequest, err)
 		return
 	}
-	res, err := h.todoService.Create(data)
+	res, err := h.todoService.Create(model.Todo{Title: data.Title})
 	if err != nil {
 		httpStatus := apperror.HTTPStatus(err)
 		httputil.WriteError(w, httpStatus, err)
