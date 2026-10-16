@@ -67,7 +67,7 @@ func (t *Repository) Create(todo model.Todo) error {
 func (t *Repository) Update(todo model.Todo) error {
 	query := "UPDATE todos SET title = $1, done = $2, updated_at = $3 WHERE id = $4"
 	res, err := t.db.ExecContext(context.Background(), query,
-		todo.Title, todo.Done, todo.UpdatedAt, todo.ID,
+		todo.Title, todo.Done, time.Now(), todo.ID,
 	)
 	if err != nil {
 		return err
