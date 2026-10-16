@@ -2,6 +2,7 @@ package todo
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/abimo2020/todo-svc/apperror"
@@ -85,7 +86,7 @@ func TestCreate(t *testing.T) {
 		{
 			name:    "empty title rejected",
 			title:   "",
-			wantErr: apperror.ErrEmptyTitle,
+			wantErr: ErrEmptyTitle,
 		},
 		{
 			name:         "failed to send notification doesn't prevent data creation",
@@ -104,6 +105,16 @@ func TestCreate(t *testing.T) {
 			title:        "Test ok",
 			wantSaved:    1,
 			wantNotified: 1,
+		},
+		{
+			name:    "the title contains only spaces",
+			title:   "    ",
+			wantErr: ErrEmptyTitle,
+		},
+		{
+			name:    "titles longer than 255 characters are rejected",
+			title:   strings.Repeat("a", 256),
+			wantErr: ErrTitleTooLong,
 		},
 	}
 

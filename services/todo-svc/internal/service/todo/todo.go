@@ -1,12 +1,22 @@
 package todo
 
 import (
+	"fmt"
 	"log"
 	"strconv"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/abimo2020/todo-svc/apperror"
 	"github.com/abimo2020/todo-svc/internal/model"
+)
+
+const maxTitleLength = 255
+
+var (
+	ErrEmptyTitle   = fmt.Errorf("%w: title cannot be empty", apperror.ErrInvalidInput)
+	ErrTitleTooLong = fmt.Errorf("%w: title must be at most %d characters", apperror.ErrInvalidInput, maxTitleLength)
 )
 
 type TodoRepository interface {
@@ -41,10 +51,15 @@ func (s *Service) GetDetail(id string) (model.Todo, error) {
 }
 
 func (s *Service) Create(param model.Todo) (model.Todo, error) {
-	if param.Title == "" {
-		return model.Todo{}, apperror.ErrEmptyTitle
+	title := strings.TrimSpace(param.Title)
+	if title == "" {
+		return model.Todo{}, ErrEmptyTitle
+	}
+	if utf8.RuneCountInString(title) > maxTitleLength {
+		return model.Todo{}, ErrTitleTooLong
 	}
 
+	param.Title = title
 	param.ID = generateID()
 	param.CreatedAt = time.Now()
 
