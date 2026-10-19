@@ -9,6 +9,7 @@ import (
 type Config struct {
 	Port        string
 	RabbitMQURL string
+	LogFormat   string
 }
 
 func Load() Config {
@@ -16,6 +17,7 @@ func Load() Config {
 	return Config{
 		Port:        getEnv("PORT", "8081"),
 		RabbitMQURL: getEnv("RABBITMQ_URL", "amqp://todo_user:todo_pass@localhost:5672/"),
+		LogFormat:   getEnv("LOG_FORMAT", "json"),
 	}
 }
 

@@ -4,8 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"log"
+	"log/slog"
 
 	"github.com/abimo2020/notif-svc/internal/model"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -37,6 +36,8 @@ func (c *Consumer) Run(ctx context.Context) error {
 		return err
 	}
 
+	slog.Info("active consumer", "queue", queueName)
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -54,11 +55,19 @@ func (c *Consumer) handle(msg amqp.Delivery) {
 	var event model.TodoCreatedEvent
 	err := json.Unmarshal(msg.Body, &event)
 	if err != nil {
-		fmt.Printf("[NOTIF] invalid message: %v", err)
+		slog.Warn(
+			"invalid message",
+			"queue", queueName,
+			"error", err,
+			"body", string(msg.Body),
+		)
 		msg.Nack(false, false)
 		return
 	}
 
-	log.Printf("[NOTIF] New todo is created -> ID: %s, Title: %s", event.ID, event.Title)
+	slog.Info("new todo created",
+		"todo_id", event.ID,
+		"title", event.Title,
+	)
 	msg.Ack(false)
 }

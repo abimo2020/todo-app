@@ -41,6 +41,7 @@ services:
       - NOTIF_SVC_URL=http://notif-svc:8081
       - DB_DSN=postgres://todo_user:todo_pass@postgres:5432/todo_db?sslmode=disable
       - RABBITMQ_URL=amqp://todo_user:todo_pass@rabbitmq:5672/
+      - LOG_FORMAT=json
     depends_on:
       postgres:
         condition: service_healthy
@@ -54,6 +55,7 @@ services:
     environment:
       - PORT=8081
       - RABBITMQ_URL=amqp://todo_user:todo_pass@rabbitmq:5672/
+      - LOG_FORMAT="json"
     depends_on:
       rabbitmq:
         condition: service_healthy
