@@ -48,8 +48,8 @@ todo-app/
 - [x] Ganti in-memory repository ke database asli (PostgreSQL)
 - [x] Containerize tiap service dengan Docker + `docker-compose.yml`
 - [x] Ganti komunikasi HTTP sinkron ke message broker (RabbitMQ/NATS/Kafka)
-- [ ] Tambah observability (structured logging, tracing)
-- [ ] Tambah unit test & mock untuk tiap layer
+- [x] Tambah observability (structured logging, tracing)
+- [x] Tambah unit test & mock untuk tiap layer
 
 ## Cara menjalankan (development)
 
