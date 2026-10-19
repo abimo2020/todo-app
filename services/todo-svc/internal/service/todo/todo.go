@@ -2,7 +2,7 @@ package todo
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -70,7 +70,10 @@ func (s *Service) Create(param model.Todo) (model.Todo, error) {
 
 	err = s.notifClient.NotifyTodoCreated(param)
 	if err != nil {
-		log.Printf("error notify: %v", err)
+		slog.Warn("failed to send todo created notification",
+			"todo_id", param.ID,
+			"error", err,
+		)
 	}
 
 	return param, nil

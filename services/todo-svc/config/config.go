@@ -11,6 +11,7 @@ type Config struct {
 	NotifSvcURL string
 	DBDsn       string
 	RabbitMQURL string
+	LogFormat   string
 }
 
 func Load() Config {
@@ -21,6 +22,7 @@ func Load() Config {
 		NotifSvcURL: getEnv("NOTIF_SVC_URL", "http://localhost:8081"),
 		DBDsn:       getEnv("DB_DSN", "postgres://todo_user:todo_pass@localhost:5432/todo_db?sslmode=disable"),
 		RabbitMQURL: getEnv("RABBITMQ_URL", "amqp://todo_user:todo_pass@localhost:5672/"),
+		LogFormat:   getEnv("LOG_FORMAT", "json"),
 	}
 }
 

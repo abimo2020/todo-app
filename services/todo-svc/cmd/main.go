@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -18,6 +20,7 @@ import (
 	"github.com/abimo2020/todo-svc/config"
 	"github.com/abimo2020/todo-svc/internal/gateway/notif"
 	"github.com/abimo2020/todo-svc/internal/handler/todo"
+	"github.com/abimo2020/todo-svc/internal/middleware"
 	todoRepo "github.com/abimo2020/todo-svc/internal/repository/todo"
 	todoSvc "github.com/abimo2020/todo-svc/internal/service/todo"
 )
@@ -25,27 +28,33 @@ import (
 func main() {
 	cfg := config.Load()
 
+	setupLogger(cfg.LogFormat)
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	db, err := sql.Open("pgx", cfg.DBDsn)
 	if err != nil {
-		log.Fatalf("failed to connect db: %v", err)
+		slog.Error(fmt.Sprintf("failed to connect db: %v", err))
+		os.Exit(1)
 	}
 	defer db.Close()
 
 	if err := db.Ping(); err != nil {
-		log.Fatalf("failed to ping db: %v", err)
+		slog.Error(fmt.Sprintf("failed to ping db: %v", err))
+		os.Exit(1)
 	}
 
 	rabbitMQConn, err := amqp.Dial(cfg.RabbitMQURL)
 	if err != nil {
-		log.Fatalf("failed to connect rabbitMQ: %v", err)
+		slog.Error(fmt.Sprintf("failed to connect rabbitMQ: %v", err))
+		os.Exit(1)
 	}
 
 	notifClient, err := notif.NewRabbitMQ(rabbitMQConn)
 	if err != nil {
-		log.Fatalf("failed to setup notif client: %v", err)
+		slog.Error(fmt.Sprintf("failed to setup notif client: %v", err))
+		os.Exit(1)
 	}
 
 	mux := http.NewServeMux()
@@ -58,7 +67,7 @@ func main() {
 
 	todoHandler.RegisterRoutes(mux)
 
-	srv := http.Server{Addr: ":" + cfg.Port, Handler: mux}
+	srv := http.Server{Addr: ":" + cfg.Port, Handler: middleware.Logging(mux)}
 
 	serverErr := make(chan error, 1)
 	go func() {
@@ -90,4 +99,19 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 		"status":  "ok",
 		"service": "todo-svc",
 	})
+}
+
+func setupLogger(format string) {
+	opts := slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}
+
+	var handler slog.Handler
+	if format == "json" {
+		handler = slog.NewJSONHandler(os.Stdout, &opts)
+	} else {
+		handler = slog.NewTextHandler(os.Stdout, &opts)
+	}
+
+	slog.SetDefault(slog.New(handler))
 }
