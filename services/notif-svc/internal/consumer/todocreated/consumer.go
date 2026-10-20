@@ -12,6 +12,8 @@ import (
 
 const (
 	queueName = "todo.created"
+	dlxName   = "todo.dlx"
+	dlqName   = "todo.created.dlq"
 )
 
 type Consumer struct {
@@ -23,7 +25,7 @@ func New(conn *amqp.Connection) (*Consumer, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = ch.QueueDeclare(queueName, true, false, false, false, nil)
+	err = declareTopology(ch)
 	if err != nil {
 		return nil, err
 	}
@@ -53,8 +55,7 @@ func (c *Consumer) Run(ctx context.Context) error {
 
 func (c *Consumer) handle(msg amqp.Delivery) {
 	var event model.TodoCreatedEvent
-	err := json.Unmarshal(msg.Body, &event)
-	if err != nil {
+	if err := json.Unmarshal(msg.Body, &event); err != nil || event.ID == "" || event.Title == "" {
 		slog.Warn(
 			"invalid message",
 			"queue", queueName,
@@ -70,4 +71,21 @@ func (c *Consumer) handle(msg amqp.Delivery) {
 		"title", event.Title,
 	)
 	msg.Ack(false)
+}
+
+func declareTopology(ch *amqp.Channel) error {
+	if err := ch.ExchangeDeclare(dlxName, "direct", true, false, false, false, nil); err != nil {
+		return err
+	}
+	if _, err := ch.QueueDeclare(dlqName, true, false, false, false, nil); err != nil {
+		return err
+	}
+	if err := ch.QueueBind(dlqName, queueName, dlxName, false, nil); err != nil {
+		return err
+	}
+	_, err := ch.QueueDeclare(queueName, true, false, false, false, amqp.Table{
+		"x-dead-letter-exchange":    dlxName,
+		"x-dead-letter-routing-key": queueName,
+	})
+	return err
 }
