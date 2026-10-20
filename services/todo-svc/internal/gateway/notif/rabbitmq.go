@@ -12,6 +12,8 @@ import (
 
 const (
 	queueName = "todo.created"
+	dlxName   = "todo.dlx"
+	dlqName   = "todo.created.dlq"
 )
 
 type RabbitMQNotifier struct {
@@ -25,7 +27,7 @@ func NewRabbitMQ(conn *amqp.Connection) (*RabbitMQNotifier, error) {
 		return nil, err
 	}
 
-	if _, err := ch.QueueDeclare(queueName, true, false, false, false, nil); err != nil {
+	if err := declareTopology(ch); err != nil {
 		return nil, err
 	}
 
@@ -49,4 +51,21 @@ func (n *RabbitMQNotifier) NotifyTodoCreated(todo model.Todo) error {
 		DeliveryMode: amqp.Persistent,
 		Body:         body,
 	})
+}
+
+func declareTopology(ch *amqp.Channel) error {
+	if err := ch.ExchangeDeclare(dlxName, "direct", true, false, false, false, nil); err != nil {
+		return err
+	}
+	if _, err := ch.QueueDeclare(dlqName, true, false, false, false, nil); err != nil {
+		return err
+	}
+	if err := ch.QueueBind(dlqName, queueName, dlxName, false, nil); err != nil {
+		return err
+	}
+	_, err := ch.QueueDeclare(queueName, true, false, false, false, amqp.Table{
+		"x-dead-letter-exchange":    dlxName,
+		"x-dead-letter-routing-key": queueName,
+	})
+	return err
 }
