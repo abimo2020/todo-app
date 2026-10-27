@@ -3,6 +3,7 @@ package notif
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"sync"
 	"time"
 
@@ -31,6 +32,10 @@ func NewRabbitMQ(conn *amqp.Connection) (*RabbitMQNotifier, error) {
 		return nil, err
 	}
 
+	if err := ch.Confirm(false); err != nil {
+		return nil, err
+	}
+
 	return &RabbitMQNotifier{ch: ch}, nil
 }
 
@@ -44,13 +49,25 @@ func (n *RabbitMQNotifier) NotifyTodoCreated(todo model.Todo) error {
 	defer cancel()
 
 	n.mu.Lock()
-	defer n.mu.Unlock()
 
-	return n.ch.PublishWithContext(ctx, "", queueName, false, false, amqp.Publishing{
+	confirmation, err := n.ch.PublishWithDeferredConfirmWithContext(ctx, "", queueName, false, false, amqp.Publishing{
 		ContentType:  "application/json",
 		DeliveryMode: amqp.Persistent,
 		Body:         body,
 	})
+	if err != nil {
+		return err
+	}
+	defer n.mu.Unlock()
+
+	acked, err := confirmation.WaitContext(ctx)
+	if err != nil {
+		return err
+	}
+	if !acked {
+		return errors.New("broker rejected message (nack)")
+	}
+	return nil
 }
 
 func declareTopology(ch *amqp.Channel) error {
