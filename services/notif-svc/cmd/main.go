@@ -37,12 +37,7 @@ func main() {
 	}
 	defer conn.Close()
 
-	consumer, err := todocreated.New(conn)
-	if err != nil {
-		slog.Error(fmt.Sprintf("Failed to setup todocreated consumer: %v", err))
-		os.Exit(1)
-	}
-
+	consumer := todocreated.New(cfg.RabbitMQURL)
 	consumerDone := make(chan struct{})
 	go func() {
 		defer close(consumerDone)

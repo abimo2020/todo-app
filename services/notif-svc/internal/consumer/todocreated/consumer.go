@@ -22,43 +22,43 @@ const (
 )
 
 type Consumer struct {
-	ch *amqp.Channel
+	url string
 }
 
-func New(conn *amqp.Connection) (*Consumer, error) {
-	ch, err := conn.Channel()
-	if err != nil {
-		return nil, err
-	}
-	err = declareTopology(ch)
-	if err != nil {
-		return nil, err
-	}
-	return &Consumer{ch: ch}, nil
+func New(url string) *Consumer {
+	return &Consumer{url: url}
 }
 
 func (c *Consumer) Run(ctx context.Context) error {
-	msgs, err := c.ch.Consume(queueName, "", false, false, false, false, nil)
-	if err != nil {
-		return err
-	}
-
-	slog.Info("active consumer", "queue", queueName)
+	backoff := time.Second
 
 	for {
+		start := time.Now()
+		err := c.session(ctx)
+
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+
+		if time.Since(start) > 30*time.Second {
+			backoff = time.Second
+		}
+
+		slog.Warn("RabbitMQ disconnected, try to reconnecting",
+			"error", err,
+			"retry_in", backoff,
+		)
+
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
-		case msg, ok := <-msgs:
-			if !ok {
-				return errors.New("Consumer channel was closed")
-			}
-			c.handle(msg)
+			return err
+		case <-time.After(backoff):
 		}
+		backoff = min(backoff*2, 30*time.Second)
 	}
 }
 
-func (c *Consumer) handle(msg amqp.Delivery) {
+func (c *Consumer) handle(ch *amqp.Channel, msg amqp.Delivery) {
 	var event model.TodoCreatedEvent
 	if err := json.Unmarshal(msg.Body, &event); err != nil || event.ID == "" || event.Title == "" {
 		slog.Warn(
@@ -72,7 +72,7 @@ func (c *Consumer) handle(msg amqp.Delivery) {
 	}
 
 	if err := c.process(event); err != nil {
-		c.retryOrDeadLetter(msg, err)
+		c.retryOrDeadLetter(ch, msg, err)
 		return
 	}
 	msg.Ack(false)
@@ -111,7 +111,7 @@ func (n *Consumer) process(event model.TodoCreatedEvent) error {
 	return nil
 }
 
-func (n *Consumer) retryOrDeadLetter(msg amqp.Delivery, cause error) {
+func (n *Consumer) retryOrDeadLetter(ch *amqp.Channel, msg amqp.Delivery, cause error) {
 	attempt := retryCount(msg.Headers)
 	if attempt >= maxRetries {
 		slog.Warn("reach limit retry, send into dead letter queue",
@@ -126,7 +126,7 @@ func (n *Consumer) retryOrDeadLetter(msg amqp.Delivery, cause error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err := n.ch.PublishWithContext(ctx, "", retryQueueName, false, false, amqp.Publishing{
+	err := ch.PublishWithContext(ctx, "", retryQueueName, false, false, amqp.Publishing{
 		Headers:      amqp.Table{"x-retry-count": int32(attempt + 1)},
 		Body:         msg.Body,
 		ContentType:  msg.ContentType,
@@ -154,5 +154,45 @@ func retryCount(h amqp.Table) int {
 		return v
 	default:
 		return 0
+	}
+}
+
+func (c *Consumer) session(ctx context.Context) error {
+	conn, err := amqp.Dial(c.url)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	ch, err := conn.Channel()
+	if err != nil {
+		return err
+	}
+	defer ch.Close()
+
+	if err := declareTopology(ch); err != nil {
+		return err
+	}
+
+	msgs, err := ch.Consume(queueName, "", false, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+
+	slog.Info("consumer aktif", "queue", queueName)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case msg, ok := <-msgs:
+			{
+				if !ok {
+					return errors.New("connection or channel was closed")
+				}
+
+				c.handle(ch, msg)
+			}
+		}
 	}
 }
