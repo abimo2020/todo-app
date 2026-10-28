@@ -19,11 +19,14 @@ type todoResponse struct {
 }
 
 func toResponse(t model.Todo) todoResponse {
-	return todoResponse{
+	res := todoResponse{
 		ID:        t.ID,
 		Title:     t.Title,
 		Done:      t.Done,
 		CreatedAt: t.CreatedAt,
-		UpdatedAt: *t.UpdatedAt,
 	}
+	if t.UpdatedAt != nil {
+		res.UpdatedAt = *t.UpdatedAt
+	}
+	return res
 }
