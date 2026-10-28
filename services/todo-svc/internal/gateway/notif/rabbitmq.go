@@ -49,6 +49,7 @@ func (n *RabbitMQNotifier) NotifyTodoCreated(todo model.Todo) error {
 	defer cancel()
 
 	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	confirmation, err := n.ch.PublishWithDeferredConfirmWithContext(ctx, "", queueName, false, false, amqp.Publishing{
 		ContentType:  "application/json",
@@ -58,7 +59,6 @@ func (n *RabbitMQNotifier) NotifyTodoCreated(todo model.Todo) error {
 	if err != nil {
 		return err
 	}
-	defer n.mu.Unlock()
 
 	acked, err := confirmation.WaitContext(ctx)
 	if err != nil {
