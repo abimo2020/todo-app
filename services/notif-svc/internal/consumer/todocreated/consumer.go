@@ -19,6 +19,10 @@ const (
 
 	maxRetries = 3
 	retryDelay = 10 * time.Second
+
+	maxBackoff     = 30 * time.Second
+	dialTimeout    = 5 * time.Second
+	stableDuration = 30 * time.Second
 )
 
 type Consumer struct {
@@ -33,14 +37,15 @@ func (c *Consumer) Run(ctx context.Context) error {
 	backoff := time.Second
 
 	for {
-		start := time.Now()
-		err := c.session(ctx)
+		var readyAt time.Time
+
+		err := c.session(ctx, func() { readyAt = time.Now() })
 
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
 
-		if time.Since(start) > 30*time.Second {
+		if !readyAt.IsZero() && time.Since(readyAt) > stableDuration {
 			backoff = time.Second
 		}
 
@@ -54,7 +59,7 @@ func (c *Consumer) Run(ctx context.Context) error {
 			return err
 		case <-time.After(backoff):
 		}
-		backoff = min(backoff*2, 30*time.Second)
+		backoff = min(backoff*2, maxBackoff)
 	}
 }
 
@@ -157,8 +162,10 @@ func retryCount(h amqp.Table) int {
 	}
 }
 
-func (c *Consumer) session(ctx context.Context) error {
-	conn, err := amqp.Dial(c.url)
+func (c *Consumer) session(ctx context.Context, onReady func()) error {
+	conn, err := amqp.DialConfig(c.url, amqp.Config{
+		Dial: amqp.DefaultDial(dialTimeout),
+	})
 	if err != nil {
 		return err
 	}
@@ -180,6 +187,8 @@ func (c *Consumer) session(ctx context.Context) error {
 	}
 
 	slog.Info("consumer aktif", "queue", queueName)
+
+	onReady()
 
 	for {
 		select {

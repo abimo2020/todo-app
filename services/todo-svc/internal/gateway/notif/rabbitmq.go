@@ -64,6 +64,7 @@ func (n *RabbitMQNotifier) NotifyTodoCreated(todo model.Todo) error {
 	if err != nil {
 		return err
 	}
+
 	if !acked {
 		return errors.New("broker rejected message (nack)")
 	}
