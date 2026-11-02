@@ -15,7 +15,6 @@ import (
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
-	amqp "github.com/rabbitmq/amqp091-go"
 
 	"github.com/abimo2020/todo-svc/config"
 	"github.com/abimo2020/todo-svc/internal/gateway/notif"
@@ -45,17 +44,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	rabbitMQConn, err := amqp.Dial(cfg.RabbitMQURL)
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to connect rabbitMQ: %v", err))
-		os.Exit(1)
-	}
-
-	notifClient, err := notif.NewRabbitMQ(rabbitMQConn)
-	if err != nil {
-		slog.Error(fmt.Sprintf("failed to setup notif client: %v", err))
-		os.Exit(1)
-	}
+	notifClient := notif.NewRabbitMQ(cfg.RabbitMQURL)
+	defer notifClient.Close()
 
 	mux := http.NewServeMux()
 
