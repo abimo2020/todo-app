@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log/slog"
 	"time"
 
 	"github.com/abimo2020/notif-svc/internal/model"
 	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -49,10 +49,7 @@ func (c *Consumer) Run(ctx context.Context) error {
 			backoff = time.Second
 		}
 
-		slog.Warn("RabbitMQ disconnected, try to reconnecting",
-			"error", err,
-			"retry_in", backoff,
-		)
+		log.Warn().Dur("retry_in", backoff).Err(err).Msg("RabbitMQ disconnected, try to reconnecting")
 
 		select {
 		case <-ctx.Done():
@@ -66,12 +63,7 @@ func (c *Consumer) Run(ctx context.Context) error {
 func (c *Consumer) handle(ch *amqp.Channel, msg amqp.Delivery) {
 	var event model.TodoCreatedEvent
 	if err := json.Unmarshal(msg.Body, &event); err != nil || event.ID == "" || event.Title == "" {
-		slog.Warn(
-			"invalid message",
-			"queue", queueName,
-			"error", err,
-			"body", string(msg.Body),
-		)
+		log.Warn().Str("queue", queueName).Str("body", string(msg.Body)).Err(err).Msg("invalid message")
 		msg.Nack(false, false)
 		return
 	}
@@ -109,21 +101,14 @@ func declareTopology(ch *amqp.Channel) error {
 }
 
 func (n *Consumer) process(event model.TodoCreatedEvent) error {
-	slog.Info("new todo created",
-		"todo_id", event.ID,
-		"title", event.Title,
-	)
+	log.Info().Str("todo_id", event.ID).Str("title", event.Title).Msg("new todo created")
 	return nil
 }
 
 func (n *Consumer) retryOrDeadLetter(ch *amqp.Channel, msg amqp.Delivery, cause error) {
 	attempt := retryCount(msg.Headers)
 	if attempt >= maxRetries {
-		slog.Warn("reach limit retry, send into dead letter queue",
-			"attempts", attempt+1,
-			"error", cause,
-			"body", string(msg.Body),
-		)
+		log.Warn().Int("attempts", attempt+1).Str("body", string(msg.Body)).Err(cause).Msg("reach limit retry, send into dead letter queue")
 		msg.Nack(false, false)
 		return
 	}
@@ -138,14 +123,10 @@ func (n *Consumer) retryOrDeadLetter(ch *amqp.Channel, msg amqp.Delivery, cause 
 		DeliveryMode: amqp.Persistent,
 	})
 	if err != nil {
-		slog.Error("failed to reschedule retry, message resend into queue", "error", err)
+		log.Error().Err(err).Msg("failed to reschedule retry, message resend into queue")
 	}
-	slog.Warn("failed to process, reschedule the retry",
-		"attempt", attempt+1,
-		"max_retries", maxRetries,
-		"retry_in", retryDelay.String,
-		"error", cause,
-	)
+	log.Warn().Int("attempt", attempt+1).Int("max_retries", maxRetries).Str("retry_in", retryDelay.String()).Err(cause).Msg("failed to process, reschedule the retry")
+
 	msg.Ack(false)
 }
 
@@ -186,7 +167,7 @@ func (c *Consumer) session(ctx context.Context, onReady func()) error {
 		return err
 	}
 
-	slog.Info("consumer aktif", "queue", queueName)
+	log.Info().Str("queue", queueName).Msg("consumer aktif")
 
 	onReady()
 

@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -13,9 +11,11 @@ import (
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/rs/zerolog/log"
 
 	"github.com/abimo2020/notif-svc/config"
 	"github.com/abimo2020/notif-svc/internal/consumer/todocreated"
+	"github.com/abimo2020/notif-svc/pkg/logger"
 )
 
 const (
@@ -25,14 +25,14 @@ const (
 func main() {
 	cfg := config.Load()
 
-	setupLogger(cfg.LogFormat)
+	logger.Setup(cfg.LogFormat)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	conn, err := amqp.Dial(cfg.RabbitMQURL)
 	if err != nil {
-		slog.Error(fmt.Sprintf("Failed to connect rabbitmq: %v", err))
+		log.Fatal().Err(err).Msg("Failed to connect rabbitmq")
 		os.Exit(1)
 	}
 	defer conn.Close()
@@ -42,7 +42,7 @@ func main() {
 	go func() {
 		defer close(consumerDone)
 		if err := consumer.Run(context.Background()); err != nil {
-			slog.Error(fmt.Sprintf("Consumer stopped: %v", err))
+			log.Fatal().Err(err).Msg("Consumer stopped")
 			stop()
 		}
 	}()
@@ -53,30 +53,30 @@ func main() {
 	srv := &http.Server{Addr: ":" + cfg.Port, Handler: mux}
 
 	go func() {
-		slog.Info(fmt.Sprintf("Server berjalan di :%s", cfg.Port))
+		log.Info().Str("port", cfg.Port).Msg("notif-svc running")
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("http server error", "error", err)
+			log.Error().Err(err).Msg("http server error")
 			stop()
 		}
 	}()
 
 	<-ctx.Done()
-	slog.Info("Stop signal retrieved, starting shutdown..")
+	log.Info().Msg("Stop signal retrieved, starting shutdown..")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		slog.Error(fmt.Sprintf("failed to shutdown http server: %v", err))
+		log.Error().Err(err).Msg("failed to shutdown http server")
 	}
 
 	select {
 	case <-consumerDone:
-		slog.Info("Consumer done")
+		log.Info().Msg("Consumer done")
 	case <-shutdownCtx.Done():
-		slog.Info("Timeout waiting consumer")
+		log.Info().Msg("Timeout waiting consumer")
 	}
-	slog.Info("shutdown finish.")
+	log.Info().Msg("shutdown finish.")
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
@@ -87,15 +87,15 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func setupLogger(format string) {
-	opts := slog.HandlerOptions{Level: slog.LevelInfo}
+// func setupLogger(format string) {
+// 	opts := slog.HandlerOptions{Level: slog.LevelInfo}
 
-	var handler slog.Handler
-	if format == "json" {
-		handler = slog.NewJSONHandler(os.Stdout, &opts)
-	} else {
-		handler = slog.NewTextHandler(os.Stdout, &opts)
-	}
+// 	var handler slog.Handler
+// 	if format == "json" {
+// 		handler = slog.NewJSONHandler(os.Stdout, &opts)
+// 	} else {
+// 		handler = slog.NewTextHandler(os.Stdout, &opts)
+// 	}
 
-	slog.SetDefault(slog.New(handler))
-}
+// 	slog.SetDefault(slog.New(handler))
+// }

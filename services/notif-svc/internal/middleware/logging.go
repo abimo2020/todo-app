@@ -1,9 +1,11 @@
 package middleware
 
 import (
-	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 type statusRecorder struct {
@@ -24,12 +26,19 @@ func Logging(next http.Handler) http.Handler {
 
 		next.ServeHTTP(rec, r)
 
-		slog.Info(
-			"http-request",
-			"path", r.URL.Path,
-			"method", r.Method,
-			"status", rec.status,
-			"duration_ms", time.Since(start).Milliseconds(),
-		)
+		var event *zerolog.Event
+		switch {
+		case rec.status >= 500:
+			event = log.Error()
+		case rec.status >= 400:
+			event = log.Warn()
+		default:
+			event = log.Info()
+		}
+		event.Str("path", r.URL.Path).
+			Str("method", r.Method).
+			Int("status", rec.status).
+			Int64("duration_ms", time.Since(start).Milliseconds()).
+			Msg("http-request")
 	})
 }
