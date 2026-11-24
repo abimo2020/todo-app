@@ -9,6 +9,8 @@ import (
 
 	"github.com/abimo2020/todo-svc/apperror"
 	"github.com/abimo2020/todo-svc/internal/model"
+	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 )
 
 type fakeService struct {
@@ -77,17 +79,26 @@ func TestHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mux := http.NewServeMux()
-			New(tt.svc).RegisterRoutes(mux)
+			router := newRouter(tt.svc)
 
 			req := httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
 			rec := httptest.NewRecorder()
 
-			mux.ServeHTTP(rec, req)
+			router.ServeHTTP(rec, req)
 
 			if rec.Code != tt.wantStatus {
 				t.Errorf("status = %d, want %d, body: %s", rec.Code, tt.wantStatus, rec.Body)
 			}
 		})
 	}
+}
+
+func newRouter(svc TodoService) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	binding.EnableDecoderDisallowUnknownFields = true
+
+	router := gin.New()
+	New(svc).RegisterRoutes(router)
+
+	return router
 }

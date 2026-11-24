@@ -1,13 +1,15 @@
 package todo
 
 import (
-	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/abimo2020/todo-svc/apperror"
 	"github.com/abimo2020/todo-svc/internal/model"
-	"github.com/abimo2020/todo-svc/pkg/httputil"
+	"github.com/gin-gonic/gin"
 )
+
+const maxBodyBytes = 1 << 20 // 1 MiB
 
 type TodoService interface {
 	GetList() ([]model.Todo, error)
@@ -27,19 +29,18 @@ func New(todoService TodoService) *Handler {
 	}
 }
 
-func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("GET /todos", h.list)
-	mux.HandleFunc("GET /todos/{id}", h.detail)
-	mux.HandleFunc("POST /todos", h.create)
-	mux.HandleFunc("PATCH /todos/{id}/done", h.markDone)
-	mux.HandleFunc("DEL /todos/{id}", h.delete)
+func (h *Handler) RegisterRoutes(r gin.IRouter) {
+	r.GET("/todos", h.list)
+	r.GET("/todos/:id", h.detail)
+	r.POST("/todos", h.create)
+	r.PATCH("/todos/:id/done", h.markDone)
+	r.DELETE("/todos/:id", h.delete)
 }
 
-func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) list(c *gin.Context) {
 	res, err := h.todoService.GetList()
 	if err != nil {
-		httpStatus := apperror.HTTPStatus(err)
-		httputil.WriteError(w, httpStatus, err)
+		responseError(c, err)
 		return
 	}
 
@@ -48,58 +49,56 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 		out = append(out, toResponse(v))
 	}
 
-	httputil.WriteJSON(w, http.StatusOK, out)
+	c.JSON(http.StatusOK, out)
 }
 
-func (h *Handler) detail(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
+func (h *Handler) detail(c *gin.Context) {
+	id := c.Param("id")
 
 	res, err := h.todoService.GetDetail(id)
 	if err != nil {
-		httpStatus := apperror.HTTPStatus(err)
-		httputil.WriteError(w, httpStatus, err)
+		responseError(c, err)
 		return
 	}
-	httputil.WriteJSON(w, http.StatusOK, toResponse(res))
+	c.JSON(http.StatusOK, toResponse(res))
 }
 
-func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+func (h *Handler) create(c *gin.Context) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBodyBytes)
 
-	var data createRequest
-	dec := json.NewDecoder(r.Body)
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&data); err != nil {
-		httputil.WriteError(w, http.StatusBadRequest, err)
+	var req createRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		responseError(c, fmt.Errorf("%w: %v", apperror.ErrInvalidInput, err))
 		return
 	}
-	res, err := h.todoService.Create(model.Todo{Title: data.Title})
+	res, err := h.todoService.Create(model.Todo{Title: req.Title})
 	if err != nil {
-		httpStatus := apperror.HTTPStatus(err)
-		httputil.WriteError(w, httpStatus, err)
+		responseError(c, err)
 		return
 	}
-	httputil.WriteJSON(w, http.StatusCreated, res)
+	c.JSON(http.StatusCreated, toResponse(res))
 }
 
-func (h *Handler) markDone(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
+func (h *Handler) markDone(c *gin.Context) {
+	id := c.Param("id")
 
 	if err := h.todoService.MarkDone(id); err != nil {
-		httpStatus := apperror.HTTPStatus(err)
-		httputil.WriteError(w, httpStatus, err)
+		responseError(c, err)
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	c.Status(http.StatusNoContent)
 }
 
-func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
+func (h *Handler) delete(c *gin.Context) {
+	id := c.Param("id")
 
 	if err := h.todoService.Delete(id); err != nil {
-		httpStatus := apperror.HTTPStatus(err)
-		httputil.WriteError(w, httpStatus, err)
+		responseError(c, err)
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	c.Status(http.StatusNoContent)
+}
+
+func responseError(c *gin.Context, err error) {
+	c.JSON(apperror.HTTPStatus(err), gin.H{"error": err})
 }
