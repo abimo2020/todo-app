@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 
 	"net/http"
@@ -12,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/rs/zerolog/log"
 
@@ -39,23 +40,29 @@ func main() {
 
 	if err := db.Ping(); err != nil {
 		log.Fatal().Err(err).Msg("ping failure")
-		os.Exit(1)
 	}
 
 	notifClient := notif.NewRabbitMQ(cfg.RabbitMQURL)
 	defer notifClient.Close()
 
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("/health", healthHandler)
-
 	todoRepo := todoRepo.New(db)
 	todoSvc := todoSvc.New(todoRepo, notifClient)
 	todoHandler := todo.New(todoSvc)
 
-	todoHandler.RegisterRoutes(mux)
+	gin.SetMode(gin.ReleaseMode) // hapus baris ini kalau ingin lihat daftar route
+	binding.EnableDecoderDisallowUnknownFields = true
 
-	srv := http.Server{Addr: ":" + cfg.Port, Handler: middleware.Logging(mux)}
+	router := gin.New()
+	router.SetTrustedProxies(nil)
+	router.Use(middleware.Logging(), gin.Recovery())
+
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok", "service": "todo-svc"})
+	})
+
+	todoHandler.RegisterRoutes(router)
+
+	srv := http.Server{Addr: ":" + cfg.Port, Handler: router}
 
 	serverErr := make(chan error, 1)
 	go func() {
@@ -81,13 +88,13 @@ func main() {
 	log.Info().Msg("success to shutdown")
 }
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":  "ok",
-		"service": "todo-svc",
-	})
-}
+// func healthHandler(w http.ResponseWriter, r *http.Request) {
+// 	w.Header().Set("Content-Type", "application/json")
+// 	json.NewEncoder(w).Encode(map[string]interface{}{
+// 		"status":  "ok",
+// 		"service": "todo-svc",
+// 	})
+// }
 
 // func setupLogger(format string) {
 // 	opts := slog.HandlerOptions{
