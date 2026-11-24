@@ -5,9 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"log"
-	"log/slog"
+
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,6 +13,7 @@ import (
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/rs/zerolog/log"
 
 	"github.com/abimo2020/todo-svc/config"
 	"github.com/abimo2020/todo-svc/internal/gateway/notif"
@@ -22,25 +21,24 @@ import (
 	"github.com/abimo2020/todo-svc/internal/middleware"
 	todoRepo "github.com/abimo2020/todo-svc/internal/repository/todo"
 	todoSvc "github.com/abimo2020/todo-svc/internal/service/todo"
+	"github.com/abimo2020/todo-svc/pkg/logger"
 )
 
 func main() {
 	cfg := config.Load()
-
-	setupLogger(cfg.LogFormat)
+	logger.Setup(cfg.LogFormat)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	db, err := sql.Open("pgx", cfg.DBDsn)
 	if err != nil {
-		slog.Error(fmt.Sprintf("failed to connect db: %v", err))
-		os.Exit(1)
+		log.Fatal().Err(err).Msg("failed to connect database")
 	}
 	defer db.Close()
 
 	if err := db.Ping(); err != nil {
-		slog.Error(fmt.Sprintf("failed to ping db: %v", err))
+		log.Fatal().Err(err).Msg("ping failure")
 		os.Exit(1)
 	}
 
@@ -61,7 +59,7 @@ func main() {
 
 	serverErr := make(chan error, 1)
 	go func() {
-		log.Printf("Server berjalan di :%s\n", cfg.Port)
+		log.Info().Str("port", cfg.Port).Msg("todo-svc running")
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			serverErr <- err
 		}
@@ -69,18 +67,18 @@ func main() {
 
 	select {
 	case <-ctx.Done():
-		log.Println("Receive stop signal, starting shutdown..")
+		log.Info().Msg("receive stop signal, starting shutdown")
 	case err := <-serverErr:
-		log.Printf("http server error: %v", err)
+		log.Info().Err(err).Msg("http server error")
 	}
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
 
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Printf("Failed to shutdown server: %v", err)
+		log.Info().Err(err).Msg("failed to shutdown server")
 	}
-	log.Println("Success to shutdown")
+	log.Info().Msg("success to shutdown")
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
@@ -91,17 +89,17 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func setupLogger(format string) {
-	opts := slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	}
+// func setupLogger(format string) {
+// 	opts := slog.HandlerOptions{
+// 		Level: slog.LevelInfo,
+// 	}
 
-	var handler slog.Handler
-	if format == "json" {
-		handler = slog.NewJSONHandler(os.Stdout, &opts)
-	} else {
-		handler = slog.NewTextHandler(os.Stdout, &opts)
-	}
+// 	var handler slog.Handler
+// 	if format == "json" {
+// 		handler = slog.NewJSONHandler(os.Stdout, &opts)
+// 	} else {
+// 		handler = slog.NewTextHandler(os.Stdout, &opts)
+// 	}
 
-	slog.SetDefault(slog.New(handler))
-}
+// 	slog.SetDefault(slog.New(handler))
+// }

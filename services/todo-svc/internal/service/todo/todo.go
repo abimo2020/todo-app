@@ -2,7 +2,6 @@ package todo
 
 import (
 	"fmt"
-	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/abimo2020/todo-svc/apperror"
 	"github.com/abimo2020/todo-svc/internal/model"
+	"github.com/rs/zerolog/log"
 )
 
 const maxTitleLength = 255
@@ -70,10 +70,7 @@ func (s *Service) Create(param model.Todo) (model.Todo, error) {
 
 	err = s.notifClient.NotifyTodoCreated(param)
 	if err != nil {
-		slog.Warn("failed to send todo created notification",
-			"todo_id", param.ID,
-			"error", err,
-		)
+		log.Warn().Str("todo_id", param.ID).Err(err).Msg("failed to send todo created notification")
 	}
 
 	return param, nil
