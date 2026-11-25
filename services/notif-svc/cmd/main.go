@@ -10,11 +10,17 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/rs/zerolog/log"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
 	"github.com/abimo2020/notif-svc/config"
 	"github.com/abimo2020/notif-svc/internal/consumer/todocreated"
+	notifHandler "github.com/abimo2020/notif-svc/internal/handler/notification"
+	"github.com/abimo2020/notif-svc/internal/middleware"
+	notifRepo "github.com/abimo2020/notif-svc/internal/repository/notification"
 	"github.com/abimo2020/notif-svc/pkg/logger"
 )
 
@@ -33,11 +39,35 @@ func main() {
 	conn, err := amqp.Dial(cfg.RabbitMQURL)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to connect rabbitmq")
-		os.Exit(1)
 	}
 	defer conn.Close()
 
-	consumer := todocreated.New(cfg.RabbitMQURL)
+	mongoClient, err := mongo.Connect(options.Client().ApplyURI(cfg.MongoURI))
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to create mongodb client")
+	}
+
+	defer func() {
+		dc, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		mongoClient.Disconnect(dc)
+	}()
+
+	pingCtx, cancelPing := context.WithTimeout(ctx, 5*time.Second)
+	if err := mongoClient.Ping(pingCtx, nil); err != nil {
+		cancelPing()
+		log.Fatal().Err(err).Msg("cannot call mongodb")
+	}
+
+	notifRepo := notifRepo.New(mongoClient.Database("notif_db"))
+
+	if err := notifRepo.EnsureIndexes(ctx); err != nil {
+		cancelPing()
+		log.Fatal().Err(err).Msg("failed to create index")
+	}
+	cancelPing()
+
+	consumer := todocreated.New(cfg.RabbitMQURL, notifRepo)
 	consumerDone := make(chan struct{})
 	go func() {
 		defer close(consumerDone)
@@ -47,10 +77,15 @@ func main() {
 		}
 	}()
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/health", healthHandler)
+	router := gin.New()
+	router.SetTrustedProxies(nil)
+	router.Use(middleware.Logging(), gin.Recovery())
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok", "service": "notif-svc"})
+	})
+	notifHandler.New(notifRepo).RegisterRoutes(router)
 
-	srv := &http.Server{Addr: ":" + cfg.Port, Handler: mux}
+	srv := &http.Server{Addr: ":" + cfg.Port, Handler: router}
 
 	go func() {
 		log.Info().Str("port", cfg.Port).Msg("notif-svc running")

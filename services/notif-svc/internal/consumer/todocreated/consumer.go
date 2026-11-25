@@ -25,12 +25,17 @@ const (
 	stableDuration = 30 * time.Second
 )
 
-type Consumer struct {
-	url string
+type Store interface {
+	Save(ctx context.Context, notif model.Notification) error
 }
 
-func New(url string) *Consumer {
-	return &Consumer{url: url}
+type Consumer struct {
+	url   string
+	store Store
+}
+
+func New(url string, store Store) *Consumer {
+	return &Consumer{url: url, store: store}
 }
 
 func (c *Consumer) Run(ctx context.Context) error {
@@ -68,7 +73,10 @@ func (c *Consumer) handle(ch *amqp.Channel, msg amqp.Delivery) {
 		return
 	}
 
-	if err := c.process(event); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := c.process(ctx, event); err != nil {
 		c.retryOrDeadLetter(ch, msg, err)
 		return
 	}
@@ -100,7 +108,22 @@ func declareTopology(ch *amqp.Channel) error {
 	return err
 }
 
-func (n *Consumer) process(event model.TodoCreatedEvent) error {
+func (n *Consumer) process(ctx context.Context, event model.TodoCreatedEvent) error {
+	notif := model.Notification{
+		ID:        "todo.created:" + event.ID,
+		Type:      "todo.created",
+		TodoID:    event.ID,
+		Title:     event.Title,
+		CreatedAt: time.Now(),
+	}
+	err := n.store.Save(ctx, notif)
+	if errors.Is(err, model.ErrDuplicate) {
+		log.Info().Str("todo_id", event.ID).Msg("ignored duplicate notification")
+		return nil
+	}
+	if err != nil {
+		return err
+	}
 	log.Info().Str("todo_id", event.ID).Str("title", event.Title).Msg("new todo created")
 	return nil
 }

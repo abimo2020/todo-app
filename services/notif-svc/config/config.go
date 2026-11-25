@@ -10,6 +10,7 @@ type Config struct {
 	Port        string
 	RabbitMQURL string
 	LogFormat   string
+	MongoURI    string
 }
 
 func Load() Config {
@@ -18,6 +19,7 @@ func Load() Config {
 		Port:        getEnv("PORT", "8081"),
 		RabbitMQURL: getEnv("RABBITMQ_URL", "amqp://todo_user:todo_pass@localhost:5672/"),
 		LogFormat:   getEnv("LOG_FORMAT", "json"),
+		MongoURI:    getEnv("MONGO_URI", "mongodb://notif_user:notif_pass@localhost:27017/?authSource=admin"),
 	}
 }
 

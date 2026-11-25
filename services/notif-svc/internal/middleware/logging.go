@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -18,27 +19,28 @@ func (r *statusRecorder) WriteHeader(code int) {
 	r.ResponseWriter.WriteHeader(code)
 }
 
-func Logging(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func Logging() gin.HandlerFunc {
+	return func(c *gin.Context) {
 		start := time.Now()
 
-		rec := &statusRecorder{status: http.StatusOK, ResponseWriter: w}
+		c.Next()
 
-		next.ServeHTTP(rec, r)
+		status := c.Writer.Status()
 
 		var event *zerolog.Event
 		switch {
-		case rec.status >= 500:
+		case status >= 500:
 			event = log.Error()
-		case rec.status >= 400:
+		case status >= 400:
 			event = log.Warn()
 		default:
 			event = log.Info()
 		}
-		event.Str("path", r.URL.Path).
-			Str("method", r.Method).
-			Int("status", rec.status).
+		event.Str("path", c.Request.URL.Path).
+			Str("method", c.Request.Method).
+			Str("route", c.FullPath()).
+			Int("status", status).
 			Int64("duration_ms", time.Since(start).Milliseconds()).
 			Msg("http-request")
-	})
+	}
 }
